@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Money">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23111'/%3E%3Ctext x='50' y='62' font-size='42' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'%3ERp%3C/text%3E%3C/svg%3E">
+  <title>Money Tracker</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0; min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      background: #fafafa; color: #111;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+    }
+    body {
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      padding-bottom: max(env(safe-area-inset-bottom), 16px);
+    }
+    .container { max-width: 600px; margin: 0 auto; padding: 16px; }
+
+    /* HEADER */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 4px 20px; margin-bottom: 4px;
+    }
+    .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; margin: 0; }
+    .header .actions { display: flex; gap: 8px; }
+    .icon-btn {
+      width: 38px; height: 38px; border-radius: 12px;
+      background: white; border: 0.5px solid rgba(0,0,0,0.08);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px; color: #111;
+    }
+    .icon-btn:active { transform: scale(0.95); background: #f5f5f5; }
+
+    .sync-badge {
+      font-size: 11px; padding: 4px 10px; border-radius: 20px;
+      background: #f3f4f6; color: #6b7280; font-weight: 500;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .sync-badge.ok { background: #ecfdf5; color: #065f46; }
+    .sync-badge.err { background: #fef2f2; color: #991b1b; }
+    .sync-badge.syncing { background: #fefce8; color: #854d0e; }
+    .sync-badge .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: currentColor;
+    }
+    .sync-badge.syncing .dot { animation: pulse 1.4s infinite; }
+    @keyframes pulse { 50% { opacity: 0.3; } }
+
+    /* BALANCE CARD */
+    .balance-card {
+      background: linear-gradient(135deg, #111 0%, #2c2c2c 100%);
+      color: white; border-radius: 22px;
+      padding: 24px 22px; margin-bottom: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    }
+    .balance-card .label {
+      font-size: 12px; opacity: 0.6; letter-spacing: 0.6px;
+      text-transform: uppercase; margin-bottom: 6px; font-weight: 500;
+    }
+    .balance-card .amount {
+      font-size: 36px; font-weight: 700; letter-spacing: -1.2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .balance-card .amount.negative { color: #fca5a5; }
+
+    /* INCOME/EXPENSE ROW */
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .stat {
+      background: white; border-radius: 16px; padding: 14px 16px;
+      border: 0.5px solid rgba(0,0,0,0.06);
+    }
+    .stat .label { font-size: 11px; color: #6b7280; margin-bottom: 4px; font-weight: 500; }
+    .stat .value { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.3px; }
+    .stat.income .value { color: #1D9E75; }
+    .stat.expense .value { color: #D85A30; }
+
+    /* TABS */
+    .tabs { display: flex; gap: 6px; margin-bottom: 14px; padding: 4px; background: #f3f4f6; border-radius: 12px; }
+    .tab {
+      flex: 1; padding: 8px; text-align: center; font-size: 13px; font-weight: 500;
+      border-radius: 8px; cursor: pointer; color: #6b7280; transition: all 0.15s;
+    }
+    .tab.active { background: white; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+    /* QUICK INPUT */
+    .quick-input {
+      background: white; border-radius: 16px; padding: 8px;
+      display: flex; gap: 8px; margin-bottom: 14px;
+      border: 0.5px solid rgba(0,0,0,0.08);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .quick-input input {
+      flex: 1; border: none; outline: none; font-size: 15px;
+      font-family: inherit; padding: 10px 12px; background: transparent; color: #111;
+    }
+    .quick-input input::placeholder { color: #9ca3af; }
+    .quick-input button {
+      width: 40px; height: 40px; border-radius: 10px; border: none;
+      background: #111; color: white; cursor: pointer; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .quick-input button:disabled { opacity: 0.4; }
+    .quick-input button:active { transform: scale(0.95); }
+
+    .quick-hints { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+    .hint-chip {
+      font-size: 11px; padding: 5px 10px; border-radius: 20px;
+      background: white; border: 0.5px solid rgba(0,0,0,0.1);
+      color: #6b7280; cursor: pointer;
+    }
+    .hint-chip:active { background: #f3f4f6; }
+
+    /* TX LIST */
+    .tx-list { display: flex; flex-direction: column; gap: 6px; }
+    .tx-section-label {
+      font-size: 11px; color: #9ca3af; padding: 8px 4px 4px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .tx-item {
+      background: white; border-radius: 14px; padding: 12px 14px;
+      display: flex; align-items: center; gap: 12px;
+      border: 0.5px solid rgba(0,0,0,0.05);
+      animation: slideIn 0.2s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+    .tx-icon {
+      width: 38px; height: 38px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .tx-info { flex: 1; min-width: 0; }
+    .tx-desc {
+      font-size: 14px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .tx-meta { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+    .tx-amount {
+      font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums;
+      white-space: nowrap; letter-spacing: -0.2px;
+    }
+    .tx-amount.income { color: #1D9E75; }
+    .tx-amount.expense { color: #D85A30; }
+    .tx-item.syncing { opacity: 0.55; }
+
+    /* CATEGORY CHART */
+    .cat-section { background: white; border-radius: 16px; padding: 16px; border: 0.5px solid rgba(0,0,0,0.05); }
+    .cat-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .cat-row:last-child { margin-bottom: 0; }
+    .cat-name { font-size: 13px; width: 90px; flex-shrink: 0; font-weight: 500; }
+    .cat-bar-wrap { flex: 1; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+    .cat-bar { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .cat-val { font-size: 12px; color: #6b7280; width: 90px; text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* EMPTY */
+    .empty {
+      text-align: center; padding: 60px 20px; color: #9ca3af; font-size: 13px;
+      background: white; border-radius: 16px; border: 0.5px dashed rgba(0,0,0,0.1);
+    }
+    .empty .big-icon { font-size: 40px; margin-bottom: 10px; opacity: 0.5; }
+
+    /* MODAL (manual form) */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      display: none; align-items: flex-end; justify-content: center;
+      z-index: 100; padding: 0; animation: fadeIn 0.2s ease;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: white; border-radius: 24px 24px 0 0; width: 100%; max-width: 600px;
+      padding: 20px 20px max(env(safe-area-inset-bottom), 20px); animation: slideUp 0.25s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .modal h2 { font-size: 18px; margin: 0 0 16px; font-weight: 700; }
+    .form-grid { display: flex; flex-direction: column; gap: 10px; }
+    .form-row { display: flex; gap: 8px; }
+    .modal input, .modal select {
+      flex: 1; font-family: inherit; font-size: 15px;
+      padding: 12px 14px; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px;
+      background: #fafafa; outline: none; color: #111;
+      -webkit-appearance: none; appearance: none;
+    }
+    .modal input:focus, .modal select:focus { border-color: #111; background: white; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .btn-primary, .btn-secondary {
+      flex: 1; padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 600;
+      border: none; cursor: pointer; font-family: inherit;
+    }
+    .btn-primary { background: #111; color: white; }
+    .btn-secondary { background: #f3f4f6; color: #111; }
+    .btn-primary:active, .btn-secondary:active { transform: scale(0.98); }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: max(env(safe-area-inset-bottom), 20px); left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #111; color: white; padding: 10px 18px; border-radius: 100px;
+      font-size: 13px; font-weight: 500; opacity: 0; pointer-events: none;
+      transition: all 0.3s ease; z-index: 200; max-width: 90%;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { background: #dc2626; }
+    .toast.success { background: #059669; }
+
+    /* SWIPE DELETE */
+    .tx-item { position: relative; overflow: hidden; }
+    .tx-item .delete-btn {
+      position: absolute; right: -50px; top: 0; bottom: 0; width: 50px;
+      background: #dc2626; color: white; border: none; cursor: pointer;
+      transition: right 0.2s ease; font-size: 16px;
+    }
+    .tx-item.show-delete { padding-right: 60px; }
+    .tx-item.show-delete .delete-btn { right: 0; }
+
+    /* SETTINGS MODAL */
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0; border-bottom: 0.5px solid rgba(0,0,0,0.06);
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-row .label { font-size: 14px; font-weight: 500; }
+    .settings-row .desc { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+    .url-display {
+      font-family: ui-monospace, 'SF Mono', monospace; font-size: 11px;
+      background: #f3f4f6; padding: 8px 10px; border-radius: 8px;
+      word-break: break-all; color: #6b7280; margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- HEADER -->
+    <div class="header">
+      <h1>Money</h1>
+      <div class="actions">
+        <span class="sync-badge syncing" id="sync-badge"><span class="dot"></span><span id="sync-text">loading</span></span>
+        <button class="icon-btn" onclick="refreshFromSheet()" aria-label="Refresh">↻</button>
+        <button class="icon-btn" onclick="openSettings()" aria-label="Settings">⚙</button>
+      </div>
+    </div>
+
+    <!-- BALANCE -->
+    <div class="balance-card">
+      <div class="label">Saldo</div>
+      <div class="amount" id="balance-val">Rp 0</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat income">
+        <div class="label">Pemasukan</div>
+        <div class="value" id="income-val">Rp 0</div>
+      </div>
+      <div class="stat expense">
+        <div class="label">Pengeluaran</div>
+        <div class="value" id="expense-val">Rp 0</div>
+      </div>
+    </div>
+
+    <!-- QUICK INPUT -->
+    <div class="quick-input">
+      <input type="text" id="quick-text" placeholder="Contoh: kopi 50 ribu" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <button onclick="parseAndAdd()" id="add-btn" aria-label="Add">+</button>
+    </div>
+
+    <div class="quick-hints">
+      <span class="hint-chip" onclick="useExample('kopi 50 ribu')">kopi 50 ribu</span>
+      <span class="hint-chip" onclick="useExample('makan siang 45rb')">makan 45rb</span>
+      <span class="hint-chip" onclick="useExample('grab 25rb')">grab 25rb</span>
+      <span class="hint-chip" onclick="useExample('gajian 5 juta')">gajian 5jt</span>
+      <span class="hint-chip" onclick="openManual()">+ manual</span>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('transactions')" id="tab-1">Transaksi</div>
+      <div class="tab" onclick="switchTab('categories')" id="tab-2">Kategori</div>
+    </div>
+
+    <!-- TX LIST -->
+    <div id="view-tx">
+      <div id="tx-list">
+        <div class="empty">
+          <div class="big-icon">💸</div>
+          Belum ada transaksi.<br>
+          <strong>Ketik di kotak di atas ↑</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- CATEGORIES VIEW -->
+    <div id="view-cat" style="display:none;">
+      <div class="cat-section" id="cat-chart">
+        <div class="empty" style="border:none; padding:30px 0;">
+          <div class="big-icon">📊</div>
+          Belum ada data pengeluaran.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MANUAL ADD MODAL -->
+  <div class="modal-backdrop" id="manual-modal" onclick="if(event.target===this)closeManual()">
+    <div class="modal">
+      <h2>Tambah Manual</h2>
+      <div class="form-grid">
+        <div class="form-row">
+          <select id="f-type">
+            <option value="expense">Pengeluaran</option>
+            <option value="income">Pemasukan</option>
+          </select>
+          <input type="number" id="f-amount" placeholder="Jumlah (Rp)" inputmode="numeric" />
+        </div>
+        <input type="text" id="f-desc" placeholder="Keterangan" />
+        <div class="form-row">
+          <select id="f-cat">
+            <option>Makanan</option><option>Transport</option><option>Hunian</option>
+            <option>Belanja</option><option>Kesehatan</option><option>Hiburan</option>
+            <option>Pemasukan</option><option>Lainnya</option>
+          </select>
+          <input type="date" id="f-date" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeManual()">Batal</button>
+        <button class="btn-primary" onclick="submitManual()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal-backdrop" id="settings-modal" onclick="if(event.target===this)closeSettings()">
+    <div class="modal">
+      <h2>Pengaturan</h2>
+
+      <div class="settings-row">
+        <div>
+          <div class="label">Google Sheets Sync</div>
+          <div class="desc">URL Apps Script webhook</div>
+        </div>
+      </div>
+      <input type="text" id="webhook-input" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;font-family:ui-monospace,'SF Mono',monospace;font-size:11px;padding:10px 12px;border:0.5px solid rgba(0,0,0,0.12);border-radius:10px;background:#fafafa;outline:none;margin-top:8px;" />
+      <button class="btn-primary" onclick="saveWebhook()" style="width:100%;margin-top:10px;">Simpan URL</button>
+
+      <div style="margin-top:20px;">
+        <div class="label" style="font-size:14px;font-weight:500;margin-bottom:8px;">Data</div>
+        <button class="btn-secondary" onclick="exportCSV()" style="width:100%;margin-bottom:6px;">Export CSV</button>
+        <button class="btn-secondary" onclick="clearLocal()" style="width:100%;color:#dc2626;">Hapus Data Lokal</button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-primary" onclick="closeSettings()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ==== CONFIG ====
+    const DEFAULT_WEBHOOK = 'https://script.google.com/macros/s/AKfycbw5CW_Vfo_XNLaAG-htp3vN-ivsowUq0Z_YMa9fqUXbl0la-NjHE5HsIIrYRPUeSyYdmg/exec';
+    const STORAGE_KEY = 'money_tracker_v1';
+    const WEBHOOK_KEY = 'money_tracker_webhook';
+
+    // ==== STATE ====
+    let transactions = [];
+    let webhookUrl = localStorage.getItem(WEBHOOK_KEY) || DEFAULT_WEBHOOK;
+
+    const CAT_COLORS = {
+      Makanan: '#f97316', Transport: '#3b82f6', Hunian: '#8b5cf6',
+      Belanja: '#ec4899', Kesehatan: '#10b981', Hiburan: '#f59e0b',
+      Pemasukan: '#22c55e', Lainnya: '#6b7280'
+    };
+    const CAT_ICONS = {
+      Makanan: '🍽️', Transport: '🚗', Hunian: '🏠',
+      Belanja: '🛍️', Kesehatan: '💊', Hiburan: '🎬',
+      Pemasukan: '💰', Lainnya: '📝'
+    };
+    const CATEGORY_KEYWORDS = {
+      Makanan: ['makan','sarapan','siang','malam','kopi','coffee','starbucks','kfc','mcd','nasi','mie','bakso','sate','ayam','warteg','warung','resto','restaurant','snack','kue','roti','minum','jus','teh','boba','kedai','cafe','gofood','grabfood','shopeefood','jajan','cemilan'],
+      Transport: ['grab','gojek','gocar','grabcar','bensin','tol','parkir','parking','taksi','taxi','ojek','angkot','bus','kereta','train','tiket','pesawat','transport','bbm','pertamax','pertalite'],
+      Hunian: ['kost','kontrak','rent','sewa','listrik','pln','air','pdam','gas','internet','wifi','indihome','rumah','apartemen'],
+      Belanja: ['beli','shopping','baju','sepatu','celana','tas','elektronik','tokopedia','shopee','lazada','blibli','indomaret','alfamart','supermarket','mall'],
+      Kesehatan: ['dokter','obat','apotek','rumah sakit','klinik','vitamin','medical','vaksin'],
+      Hiburan: ['nonton','bioskop','xxi','cgv','game','steam','spotify','netflix','disney','konser','liburan','karaoke','gym']
+    };
+    const INCOME_KEYWORDS = ['gaji','gajian','salary','bonus','thr','dapat','income','komisi','dibayar','terima','freelance'];
+
+    // ==== UTILS ====
+    function formatIDR(n) {
+      const abs = Math.abs(n);
+      if (abs >= 1000000) return 'Rp ' + (abs/1000000).toFixed(abs >= 10000000 ? 0 : 1).replace('.0','') + ' jt';
+      if (abs >= 10000) return 'Rp ' + Math.round(abs/1000) + 'rb';
+      return 'Rp ' + Math.round(abs).toLocaleString('id-ID');
+    }
+    function formatIDRFull(n) { return 'Rp ' + Math.abs(Math.round(n)).toLocaleString('id-ID'); }
+    function today() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function formatDateLabel(iso) {
+      const d = new Date(iso);
+      const now = new Date();
+      const diff = Math.floor((now - d) / 86400000);
+      if (diff === 0) return 'Hari ini';
+      if (diff === 1) return 'Kemarin';
+      if (diff < 7) return diff + ' hari lalu';
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    }
+
+    function loadLocal() {
+      try {
+        const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        transactions = d.transactions || [];
+      } catch(e) { transactions = []; }
+    }
+    function saveLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions })); }
+
+    // ==== SYNC ====
+    function setSyncStatus(state, text) {
+      const badge = document.getElementById('sync-badge');
+      badge.className = 'sync-badge ' + state;
+      document.getElementById('sync-text').textContent = text;
+    }
+
+    async function syncAdd(tx) {
+      if (!webhookUrl) return;
+      try {
+        await fetch(webhookUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: JSON.stringify({
+            action: 'add',
+            tx: {
+              id: tx.id, date: tx.date, type: tx.type,
+              amount: tx.amount, category: tx.category, description: tx.description
+            }
+          })
+        });
+        return true;
+      } catch(e) { return false; }
+    }
+
+    async function syncDelete(id) {
+      if (!webhookUrl) return;
+      try {
+        await fetch(webhookUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: JSON.stringify({ action: 'delete', id: id })
+        });
+        return true;
+      } catch(e) { return false; }
+    }
+
+    async function refreshFromSheet() {
+      if (!webhookUrl) { showToast('Webhook URL belum diset', 'error'); return; }
+      setSyncStatus('syncing', 'loading');
+      try {
+        const resp = await fetch(webhookUrl, { method: 'GET' });
+        const data = await resp.json();
+        if (data.transactions) {
+          transactions = data.transactions.map(t => ({ ...t, amount: Number(t.amount) }));
+          saveLocal();
+          render();
+          setSyncStatus('ok', transactions.length + ' synced');
+          showToast('✓ ' + transactions.length + ' transaksi dari Sheet', 'success');
+        }
+      } catch(e) {
+        setSyncStatus('err', 'offline');
+        showToast('Gagal load. Cek koneksi.', 'error');
+      }
+    }
+
+    // ==== RENDER ====
+    function render() {
+      const income = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+      const expense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+      const bal = income - expense;
+
+      const balEl = document.getElementById('balance-val');
+      balEl.textContent = formatIDRFull(bal);
+      balEl.className = 'amount' + (bal < 0 ? ' negative' : '');
+      document.getElementById('income-val').textContent = formatIDR(income);
+      document.getElementById('expense-val').textContent = formatIDR(expense);
+
+      renderTxList();
+      renderCategoryChart();
+    }
+
+    function renderTxList() {
+      const list = document.getElementById('tx-list');
+      if (transactions.length === 0) {
+        list.innerHTML = '<div class="empty"><div class="big-icon">💸</div>Belum ada transaksi.<br><strong>Ketik di kotak di atas ↑</strong></div>';
+        return;
+      }
+
+      // Group by date
+      const sorted = [...transactions].sort((a,b) => (b.date+b.id).localeCompare(a.date+a.id));
+      const grouped = {};
+      sorted.forEach(t => {
+        const key = t.date;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(t);
+      });
+
+      let html = '';
+      for (const [date, txs] of Object.entries(grouped)) {
+        html += `<div class="tx-section-label">${formatDateLabel(date)}</div>`;
+        html += txs.map(t => `
+          <div class="tx-item ${t._syncing ? 'syncing' : ''}" data-id="${t.id}">
+            <div class="tx-icon" style="background:${CAT_COLORS[t.category]||'#888'}22;">${CAT_ICONS[t.category]||'📝'}</div>
+            <div class="tx-info">
+              <div class="tx-desc">${escHtml(t.description)}</div>
+              <div class="tx-meta">${t.category}${t._syncing ? ' · syncing...' : ''}</div>
+            </div>
+            <div class="tx-amount ${t.type}">
+              ${t.type==='income'?'+':'−'}${formatIDR(t.amount)}
+            </div>
+            <button class="delete-btn" onclick="deleteTx('${t.id}', event)" aria-label="Delete">×</button>
+          </div>
+        `).join('');
+      }
+      list.innerHTML = html;
+
+      // attach swipe handlers
+      list.querySelectorAll('.tx-item').forEach(attachSwipe);
+    }
+
+    function renderCategoryChart() {
+      const expTxs = transactions.filter(t=>t.type==='expense');
+      const totals = {};
+      expTxs.forEach(t => { totals[t.category] = (totals[t.category]||0) + t.amount; });
+      const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+      const max = sorted.length ? sorted[0][1] : 1;
+      const chart = document.getElementById('cat-chart');
+      if (!sorted.length) {
+        chart.innerHTML = '<div class="empty" style="border:none;padding:30px 0;"><div class="big-icon">📊</div>Belum ada data pengeluaran.</div>';
+        return;
+      }
+      chart.innerHTML = sorted.map(([cat, val]) => `
+        <div class="cat-row">
+          <div class="cat-name">${CAT_ICONS[cat]||'📝'} ${cat}</div>
+          <div class="cat-bar-wrap"><div class="cat-bar" style="width:${Math.round(val/max*100)}%;background:${CAT_COLORS[cat]||'#888'}"></div></div>
+          <div class="cat-val">${formatIDRFull(val)}</div>
+        </div>
+      `).join('');
+    }
+
+    // ==== SWIPE TO DELETE ====
+    function attachSwipe(el) {
+      let startX = 0, currentX = 0, swiping = false;
+      el.addEventListener('touchstart', e => {
+        startX = e.touches[0].clientX; swiping = true;
+      }, { passive: true });
+      el.addEventListener('touchmove', e => {
+        if (!swiping) return;
+        currentX = e.touches[0].clientX;
+        const diff = startX - currentX;
+        if (diff > 30) el.classList.add('show-delete');
+        else if (diff < -30) el.classList.remove('show-delete');
+      }, { passive: true });
+      el.addEventListener('touchend', () => { swiping = false; });
+      // also tap to toggle on click outside swipe
+      el.addEventListener('click', e => {
+        if (e.target.classList.contains('delete-btn')) return;
+        document.querySelectorAll('.tx-item.show-delete').forEach(x => {
+          if (x !== el) x.classList.remove('show-delete');
+        });
+      });
+    }
+
+    // ==== ACTIONS ====
+    function switchTab(tab) {
+      document.getElementById('tab-1').classList.toggle('active', tab === 'transactions');
+      document.getElementById('tab-2').classList.toggle('active', tab === 'categories');
+      document.getElementById('view-tx').style.display = tab === 'transactions' ? '' : 'none';
+      document.getElementById('view-cat').style.display = tab === 'categories' ? '' : 'none';
+    }
+
+    function openManual() {
+      document.getElementById('f-date').value = today();
+      document.getElementById('f-amount').value = '';
+      document.getElementById('f-desc').value = '';
+      document.getElementById('manual-modal').classList.add('open');
+    }
+    function closeManual() { document.getElementById('manual-modal').classList.remove('open'); }
+
+    async function submitManual() {
+      const type = document.getElementById('f-type').value;
+      const amount = parseFloat(document.getElementById('f-amount').value);
+      const desc = document.getElementById('f-desc').value.trim();
+      const cat = document.getElementById('f-cat').value;
+      const date = document.getElementById('f-date').value || today();
+      if (!amount || !desc) { showToast('Isi jumlah dan keterangan dulu!', 'error'); return; }
+      const tx = { id: Date.now().toString(), type, amount, description: desc, category: cat, date };
+      closeManual();
+      await addTx(tx);
+    }
+
+    async function addTx(tx) {
+      tx._syncing = true;
+      transactions.push(tx);
+      saveLocal();
+      render();
+      setSyncStatus('syncing', 'syncing');
+
+      await syncAdd(tx);
+      delete tx._syncing;
+      saveLocal();
+      render();
+      setSyncStatus('ok', 'synced');
+      showToast(`✓ ${tx.description} ${tx.type==='income'?'+':'−'}${formatIDR(tx.amount)}`, 'success');
+    }
+
+    async function deleteTx(id, event) {
+      if (event) event.stopPropagation();
+      transactions = transactions.filter(t=>t.id!==id);
+      saveLocal();
+      render();
+      setSyncStatus('syncing', 'syncing');
+      await syncDelete(id);
+      setSyncStatus('ok', 'synced');
+      showToast('Transaksi dihapus', 'success');
+    }
+
+    function useExample(text) {
+      document.getElementById('quick-text').value = text;
+      document.getElementById('quick-text').focus();
+    }
+
+    // ==== PARSER ====
+    function parseTransactionText(text) {
+      const lower = text.toLowerCase();
+      let amount = null;
+      let m = lower.match(/(\d+(?:[.,]\d+)?)\s*(?:juta|jt)\b/);
+      if (m) amount = parseFloat(m[1].replace(',','.')) * 1000000;
+      if (!amount) {
+        m = lower.match(/(\d+(?:[.,]\d+)?)\s*(?:ribu|rb|k)\b/);
+        if (m) amount = parseFloat(m[1].replace(',','.')) * 1000;
+      }
+      if (!amount) {
+        m = lower.match(/(?:rp\s*)?(\d{1,3}(?:[.,]\d{3})+|\d{4,})/);
+        if (m) amount = parseInt(m[1].replace(/[.,]/g,''));
+      }
+      if (!amount || amount < 100) return null;
+
+      let type = 'expense';
+      for (const kw of INCOME_KEYWORDS) {
+        if (lower.includes(kw)) { type = 'income'; break; }
+      }
+
+      let category = type === 'income' ? 'Pemasukan' : 'Lainnya';
+      if (type === 'expense') {
+        let bestScore = 0;
+        for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+          for (const kw of keywords) {
+            if (lower.includes(kw) && kw.length > bestScore) {
+              bestScore = kw.length; category = cat;
+            }
+          }
+        }
+      }
+
+      let description = text
+        .replace(/\d+(?:[.,]\d+)?\s*(?:juta|jt|ribu|rb|k)\b/gi, '')
+        .replace(/(?:rp\s*)?\d{1,3}(?:[.,]\d{3})+/gi, '')
+        .replace(/\b\d{4,}\b/g, '')
+        .replace(/\s+/g, ' ').trim();
+      if (!description) description = category;
+      description = description.charAt(0).toUpperCase() + description.slice(1);
+
+      return { type, amount: Math.round(amount), description, category, date: today() };
+    }
+
+    async function parseAndAdd() {
+      const input = document.getElementById('quick-text');
+      const text = input.value.trim();
+      if (!text) return;
+      const parsed = parseTransactionText(text);
+      if (!parsed) {
+        showToast('Tidak menemukan jumlah uang. Contoh: "kopi 50 ribu"', 'error');
+        return;
+      }
+      input.value = '';
+      input.blur();
+      const tx = { id: Date.now().toString(), ...parsed };
+      await addTx(tx);
+    }
+
+    // ==== SETTINGS ====
+    function openSettings() {
+      document.getElementById('webhook-input').value = webhookUrl;
+      document.getElementById('settings-modal').classList.add('open');
+    }
+    function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+    function saveWebhook() {
+      const url = document.getElementById('webhook-input').value.trim();
+      webhookUrl = url;
+      localStorage.setItem(WEBHOOK_KEY, url);
+      showToast('Webhook URL disimpan', 'success');
+      closeSettings();
+      refreshFromSheet();
+    }
+
+    function exportCSV() {
+      const headers = ['ID','Date','Type','Amount','Category','Description'];
+      const rows = transactions.map(t => [t.id, t.date, t.type, t.amount, t.category, t.description]);
+      const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'money-tracker-' + today() + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV diunduh', 'success');
+    }
+
+    function clearLocal() {
+      if (!confirm('Hapus semua data lokal? Data di Google Sheet tidak terpengaruh.')) return;
+      transactions = [];
+      saveLocal();
+      render();
+      showToast('Data lokal dihapus', 'success');
+    }
+
+    // ==== TOAST ====
+    let toastTimer;
+    function showToast(text, type) {
+      const t = document.getElementById('toast');
+      t.textContent = text;
+      t.className = 'toast show ' + (type || '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { t.classList.remove('show'); }, 2500);
+    }
+
+    // ==== INIT ====
+    document.getElementById('quick-text').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); parseAndAdd(); }
+    });
+
+    loadLocal();
+    render();
+    refreshFromSheet();
+  </script>
+</body>
+</html>
