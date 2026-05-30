@@ -263,7 +263,17 @@ function catInfo(name, type) {
 }
 
 function loadLocal() {
-  try { txs = JSON.parse(localStorage.getItem(SK)||'[]'); } catch(e) { txs=[]; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(SK)||'[]');
+    // If first item has long date format, clear cache and reload from Sheet
+    if (raw.length > 0 && String(raw[0].date).length > 15) {
+      console.log('Old date format detected, clearing cache');
+      txs = [];
+      localStorage.removeItem(SK);
+    } else {
+      txs = raw;
+    }
+  } catch(e) { txs=[]; }
 }
 function saveLocal() { localStorage.setItem(SK,JSON.stringify(txs)); }
 
@@ -321,7 +331,7 @@ async function refreshFromSheet() {
         let ds=String(t.date);
         try{const p=new Date(ds);if(!isNaN(p))ds=p.getFullYear()+'-'+String(p.getMonth()+1).padStart(2,'0')+'-'+String(p.getDate()).padStart(2,'0');}catch(e){ds=ds.slice(0,10);}
         const tp=String(t.type).trim().toLowerCase();
-        return{id:String(t.id),date:ds,type:tp,category:String(t.category||'Lainnya').trim(),description:String(t.description||'').trim(),amount:tp==='income'?Number(t.income||t.amount||0):Number(t.expense||t.amount||0)};
+        return{id:String(t.id),date:ds,type:tp,category:String(t.category||'Lainnya').trim(),description:String(t.description||'').trim(),amount:tp==='income'?Number(String(t.income||t.amount||0).replace(/[^0-9.]/g,""))||0:Number(String(t.expense||t.amount||0).replace(/[^0-9.]/g,""))||0};
       });
       saveLocal(); render();
       setBadge('ok',txs.length+' tx');
@@ -571,7 +581,7 @@ document.getElementById('inp-amt').addEventListener('keydown',e=>{if(e.key==='En
 document.getElementById('inp-desc').addEventListener('keydown',e=>{if(e.key==='Enter'&&selCat){e.preventDefault();submitInput();}});
 
 // ── INIT ─────────────────────────────────────────────────
-localStorage.removeItem("mt_v2");
+loadLocal();
 renderCatGrid();
 updateAddBtn();
 render();
