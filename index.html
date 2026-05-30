@@ -571,7 +571,7 @@ document.getElementById('inp-amt').addEventListener('keydown',e=>{if(e.key==='En
 document.getElementById('inp-desc').addEventListener('keydown',e=>{if(e.key==='Enter'&&selCat){e.preventDefault();submitInput();}});
 
 // ── INIT ─────────────────────────────────────────────────
-loadLocal();
+localStorage.removeItem("mt_v2");
 renderCatGrid();
 updateAddBtn();
 render();
