@@ -189,9 +189,25 @@
   <div id="v0"><div class="tx-list" id="tx-list"></div></div>
 
   <div id="v1" style="display:none">
-    <div class="chart-card">
-      <div class="chart-title">Pengeluaran per Kategori</div>
-      <div id="chart-body"></div>
+    <div class="chart-card" style="padding:14px">
+      <!-- header -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#111" id="chart-title">Pengeluaran</div>
+          <div style="font-size:11px;color:#999;margin-top:2px" id="chart-stats"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <button onclick="chartPrevMonth()" style="width:26px;height:26px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.12);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:#666">&#8249;</button>
+          <span style="font-size:12px;color:#666;min-width:36px;text-align:center" id="chart-month-lbl"></span>
+          <button onclick="chartNextMonth()" style="width:26px;height:26px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.12);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:#666">&#8250;</button>
+        </div>
+      </div>
+      <!-- svg chart -->
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <svg id="line-chart-svg" style="display:block"></svg>
+      </div>
+      <!-- legend -->
+      <div id="chart-legend" style="border-top:0.5px solid #f0f0f0;padding-top:10px;margin-top:4px;display:flex;flex-direction:column;gap:0"></div>
     </div>
   </div>
 
@@ -499,26 +515,191 @@ function renderTxList() {
   el.querySelectorAll('.tx').forEach(attachSwipe);
 }
 
+// ── LINE CHART ───────────────────────────────────────────
+let chartMonth = null; // {year, month} 0-indexed
+
+function getChartMonth() {
+  if (!chartMonth) {
+    const now = new Date();
+    chartMonth = { year: now.getFullYear(), month: now.getMonth() };
+  }
+  return chartMonth;
+}
+
+function chartPrevMonth() {
+  const m = getChartMonth();
+  if (m.month === 0) { chartMonth = { year: m.year-1, month: 11 }; }
+  else { chartMonth = { year: m.year, month: m.month-1 }; }
+  renderChart();
+}
+
+function chartNextMonth() {
+  const m = getChartMonth();
+  if (m.month === 11) { chartMonth = { year: m.year+1, month: 0 }; }
+  else { chartMonth = { year: m.year, month: m.month+1 }; }
+  renderChart();
+}
+
+function logY(val, chartH) {
+  // log scale: stops at 50k,100k,200k,500k,1M+
+  // map to y positions evenly spaced
+  const stops = [0, 50000, 100000, 200000, 500000, 1000000];
+  const ys    = [chartH, chartH-26, chartH-52, chartH-78, chartH-104, chartH-130];
+  if (val <= 0) return chartH;
+  if (val >= 1000000) return ys[5];
+  for (let i = 1; i < stops.length; i++) {
+    if (val <= stops[i]) {
+      const t = (val - stops[i-1]) / (stops[i] - stops[i-1]);
+      return ys[i-1] + t * (ys[i] - ys[i-1]);
+    }
+  }
+  return ys[5];
+}
+
+function fShort(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1).replace('.0','')+'jt';
+  if (n >= 1000) return Math.round(n/1000)+'rb';
+  return Math.round(n)+'';
+}
+
 function renderChart() {
-  const totals={};
-  txs.filter(t=>t.type==='expense').forEach(t=>{totals[t.category]=(totals[t.category]||0)+t.amount;});
-  const total=Object.values(totals).reduce((s,v)=>s+v,0);
-  const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
-  const max=sorted.length?sorted[0][1]:1;
-  const el=document.getElementById('chart-body');
-  if(!sorted.length){
-    el.innerHTML='<div style="text-align:center;padding:20px;color:#ccc;font-size:13px">Belum ada pengeluaran</div>';
+  const cm = getChartMonth();
+  const MONTHS = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  document.getElementById('chart-month-lbl').textContent = MONTHS[cm.month];
+
+  // filter txs for this month
+  const monthTxs = txs.filter(t => {
+    if (t.type !== 'expense') return false;
+    const d = new Date(t.date);
+    return d.getFullYear() === cm.year && d.getMonth() === cm.month;
+  });
+
+  if (!monthTxs.length) {
+    document.getElementById('line-chart-svg').innerHTML = '';
+    document.getElementById('line-chart-svg').setAttribute('viewBox','0 0 320 60');
+    document.getElementById('line-chart-svg').style.width = '100%';
+    document.getElementById('line-chart-svg').style.height = '60px';
+    document.getElementById('line-chart-svg').innerHTML = '<text x="160" y="35" text-anchor="middle" font-size="13" fill="#ccc">Belum ada pengeluaran bulan ini</text>';
+    document.getElementById('chart-legend').innerHTML = '';
+    document.getElementById('chart-stats').textContent = '';
+    document.getElementById('chart-title').textContent = 'Pengeluaran — ' + MONTHS[cm.month] + ' ' + cm.year;
     return;
   }
-  el.innerHTML=sorted.map(([cat,val])=>{
-    const ci=catInfo(cat,'expense');
-    const pct=total?Math.round(val/total*100):0;
-    return `<div class="c-row">
-      <div class="c-ico">${ci.e}</div>
-      <div class="c-name">${cat}</div>
-      <div class="c-bar-wrap"><div class="c-bar" style="width:${Math.round(val/max*100)}%;background:${ci.c}"></div></div>
-      <div class="c-val">${fIDR(val)}</div>
-      <div class="c-pct" style="color:${ci.c}">${pct}%</div>
+
+  // get days in month that have data
+  const daysSet = new Set(monthTxs.map(t => new Date(t.date).getDate()));
+  const days = [...daysSet].sort((a,b)=>a-b);
+
+  // get categories
+  const catSet = new Set(monthTxs.map(t => t.category));
+  const cats = [...catSet];
+
+  // totals per category
+  const catTotals = {};
+  monthTxs.forEach(t => { catTotals[t.category] = (catTotals[t.category]||0) + t.amount; });
+  const sortedCats = cats.sort((a,b) => (catTotals[b]||0) - (catTotals[a]||0));
+
+  // daily totals per category
+  const dayMap = {}; // dayMap[cat][day] = amount
+  sortedCats.forEach(c => { dayMap[c] = {}; });
+  monthTxs.forEach(t => {
+    const d = new Date(t.date).getDate();
+    dayMap[t.category][d] = (dayMap[t.category][d]||0) + t.amount;
+  });
+
+  // overall stats
+  const grandTotal = Object.values(catTotals).reduce((s,v)=>s+v,0);
+  const daysInMonth = new Date(cm.year, cm.month+1, 0).getDate();
+  const avgDay = Math.round(grandTotal / daysInMonth);
+  const peak = Math.max(...monthTxs.map(t=>t.amount));
+  document.getElementById('chart-title').textContent = 'Pengeluaran — ' + MONTHS[cm.month] + ' ' + cm.year;
+  document.getElementById('chart-stats').textContent = 'Total ' + fIDR(grandTotal) + '  ·  Rata/hari ' + fIDR(avgDay) + '  ·  Puncak ' + fIDR(peak);
+
+  // SVG dimensions
+  const PAD_L = 34, PAD_R = 8, PAD_T = 14, PAD_B = 20;
+  const DAY_W = Math.max(44, Math.min(60, Math.floor((320 - PAD_L - PAD_R) / Math.max(days.length,1))));
+  const W = PAD_L + DAY_W * days.length + PAD_R;
+  const chartH = 152; // y=0 is top, chartH is bottom (=0 value)
+  const H = PAD_T + chartH + PAD_B;
+
+  const svg = document.getElementById('line-chart-svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.style.width = Math.max(W, 300) + 'px';
+  svg.style.height = H + 'px';
+  svg.style.minWidth = '100%';
+
+  const xOf = i => PAD_L + DAY_W * i + DAY_W/2;
+  const yOf = val => PAD_T + logY(val, chartH);
+
+  // log scale Y positions
+  const yStops = [
+    { v: 1000000, label: '1jt+' },
+    { v: 500000,  label: '500rb' },
+    { v: 200000,  label: '200rb' },
+    { v: 100000,  label: '100rb' },
+    { v: 50000,   label: '50rb' },
+    { v: 0,       label: '0' },
+  ];
+
+  let out = '';
+
+  // grid lines
+  yStops.forEach(s => {
+    const y = PAD_T + logY(s.v, chartH);
+    out += `<line x1="${PAD_L}" y1="${y}" x2="${W - PAD_R}" y2="${y}" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>`;
+    out += `<text x="${PAD_L-3}" y="${y+3}" text-anchor="end" font-size="8" fill="#bbb">${s.label}</text>`;
+  });
+
+  // avg line
+  const avgY = PAD_T + logY(avgDay, chartH);
+  out += `<line x1="${PAD_L}" y1="${avgY}" x2="${W-PAD_R}" y2="${avgY}" stroke="#d1d5db" stroke-width="1" stroke-dasharray="4 3"/>`;
+  out += `<text x="${W-PAD_R+2}" y="${avgY+3}" font-size="7.5" fill="#9ca3af">avg</text>`;
+
+  // x labels
+  days.forEach((d,i) => {
+    out += `<text x="${xOf(i)}" y="${H-4}" text-anchor="middle" font-size="8.5" fill="#bbb">${d}</text>`;
+  });
+
+  // lines + dots + labels per category
+  sortedCats.forEach(cat => {
+    const ci = catInfo(cat, 'expense');
+    const pts = days.map((d,i) => {
+      const v = dayMap[cat][d] || 0;
+      return { x: xOf(i), y: v > 0 ? yOf(v) : null, v, d, i };
+    }).filter(p => p.v > 0);
+
+    if (!pts.length) return;
+
+    // line segments between consecutive points
+    for (let i = 0; i < pts.length - 1; i++) {
+      out += `<line x1="${pts[i].x}" y1="${pts[i].y}" x2="${pts[i+1].x}" y2="${pts[i+1].y}" stroke="${ci.c}" stroke-width="2" stroke-linecap="round"/>`;
+    }
+
+    // dots + labels
+    pts.forEach((p, pi) => {
+      out += `<circle cx="${p.x}" cy="${p.y}" r="3" fill="${ci.c}"/>`;
+      // label: alternate above/below to avoid overlap
+      const above = pi % 2 === 0;
+      const ly = above ? p.y - 6 : p.y + 13;
+      const lx = p.x + 5;
+      out += `<text x="${lx}" y="${ly}" font-size="8" fill="${ci.c}" font-weight="500">${cat} ${fShort(p.v)}</text>`;
+    });
+  });
+
+  svg.innerHTML = out;
+
+  // legend below
+  const leg = document.getElementById('chart-legend');
+  leg.innerHTML = sortedCats.map((cat, i) => {
+    const ci = catInfo(cat, 'expense');
+    const tot = catTotals[cat] || 0;
+    const pct = grandTotal ? Math.round(tot/grandTotal*100) : 0;
+    const border = i < sortedCats.length-1 ? 'border-bottom:0.5px solid #f0f0f0;' : '';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;${border}">
+      <svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="${ci.c}" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="5" r="3" fill="${ci.c}"/></svg>
+      <span style="font-size:12px;color:#111;flex:1">${ci.e} ${cat}</span>
+      <span style="font-size:11px;color:#999;margin-right:6px">${pct}%</span>
+      <span style="font-size:12px;font-weight:600;color:#111">${fFull(tot)}</span>
     </div>`;
   }).join('');
 }
