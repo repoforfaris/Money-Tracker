@@ -318,8 +318,14 @@ async function refreshFromSheet() {
     const d=await r.json();
     if(d.transactions) {
       txs=d.transactions.map(t=>({
-        ...t,
-        amount:t.type==='income'?Number(t.income||t.amount||0):Number(t.expense||t.amount||0)
+        id: String(t.id),
+        date: String(t.date),
+        type: String(t.type).trim().toLowerCase(),
+        category: String(t.category||'Lainnya').trim(),
+        description: String(t.description||'').trim(),
+        amount: t.type==='income'
+          ? Number(t.income||t.amount||0)
+          : Number(t.expense||t.amount||0)
       }));
       saveLocal(); render();
       setBadge('ok',txs.length+' tx');
