@@ -299,7 +299,7 @@ function fIDR(n) {
   if(a>=10000) return 'Rp '+Math.round(a/1000)+'rb';
   return 'Rp '+Math.round(a).toLocaleString('id-ID');
 }
-function fFull(n) { return 'Rp '+Math.abs(Math.round(n)).toLocaleString('id-ID'); }
+function fFull(n) { return (n<0?'-Rp ':'Rp ')+Math.abs(Math.round(n)).toLocaleString('id-ID'); }
 function todayStr() {
   const d=new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
