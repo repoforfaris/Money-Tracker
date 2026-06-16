@@ -152,6 +152,13 @@
     <div class="amt" id="bal-val">Rp 0</div>
   </div>
 
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="font-size:12px;font-weight:500;color:#999" id="stats-month-lbl"></div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button onclick="statsPrevMonth()" style="width:26px;height:26px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.1);background:#fff;cursor:pointer;font-size:14px;color:#666;display:flex;align-items:center;justify-content:center">&#8249;</button>
+      <button onclick="statsNextMonth()" style="width:26px;height:26px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.1);background:#fff;cursor:pointer;font-size:14px;color:#666;display:flex;align-items:center;justify-content:center">&#8250;</button>
+    </div>
+  </div>
   <div class="stats-row">
     <div class="stat inc"><div class="lbl">Pemasukan</div><div class="val" id="inc-val">Rp 0</div></div>
     <div class="stat exp"><div class="lbl">Pengeluaran</div><div class="val" id="exp-val">Rp 0</div></div>
@@ -272,6 +279,27 @@ const INC_CATS = [
 let txs = [];
 let webhookUrl = localStorage.getItem(WEBHOOK_KEY) || DEFAULT_WH;
 let curType = 'expense';
+let statsMonth = null;
+
+function getStatsMonth() {
+  if (!statsMonth) {
+    const now = new Date();
+    statsMonth = { year: now.getFullYear(), month: now.getMonth() };
+  }
+  return statsMonth;
+}
+
+function statsPrevMonth() {
+  const m = getStatsMonth();
+  statsMonth = m.month === 0 ? { year: m.year-1, month: 11 } : { year: m.year, month: m.month-1 };
+  render();
+}
+
+function statsNextMonth() {
+  const m = getStatsMonth();
+  statsMonth = m.month === 11 ? { year: m.year+1, month: 0 } : { year: m.year, month: m.month+1 };
+  render();
+}
 let selCat = null;
 
 function catInfo(name, type) {
@@ -473,14 +501,23 @@ function showView(n) {
 
 // ── RENDER ───────────────────────────────────────────────
 function render() {
-  const inc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const exp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  const bal=inc-exp;
+  // Cumulative balance (all time)
+  const allInc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const allExp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const bal=allInc-allExp;
   const bv=document.getElementById('bal-val');
   bv.textContent=fFull(bal);
   bv.className='amt'+(bal<0?' neg':'');
+
+  // Monthly income/expense
+  const MONTHS=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const sm=getStatsMonth();
+  const monthTxs=txs.filter(t=>{ const d=new Date(t.date); return d.getFullYear()===sm.year&&d.getMonth()===sm.month; });
+  const inc=monthTxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const exp=monthTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   document.getElementById('inc-val').textContent=fIDR(inc);
   document.getElementById('exp-val').textContent=fIDR(exp);
+  document.getElementById('stats-month-lbl').textContent=MONTHS[sm.month]+' '+sm.year;
   renderTxList();
   renderChart();
   renderSummary();
