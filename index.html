@@ -645,7 +645,8 @@ function render() {
   const allUser = txs.filter(t=>t.user===activeUser);
   const totalIncome  = allUser.filter(t=>t.tipe==='income').reduce((a,t)=>a+t.amount,0);
   const totalExpense = allUser.filter(t=>t.tipe==='expense').reduce((a,t)=>a+t.amount,0);
-  document.getElementById('balCash').textContent = fmt(totalIncome-totalExpense);
+  const totalSavOut  = allUser.filter(t=>t.tipe==='saving'&&t.direction==='in').reduce((a,t)=>a+t.amount,0);
+  document.getElementById('balCash').textContent = fmt(totalIncome-totalExpense-totalSavOut);
 
   // Joint savings
   const savInTotal  = txs.filter(t=>t.tipe==='saving'&&t.direction==='in').reduce((a,t)=>a+t.amount,0);
